@@ -1,0 +1,27 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>2026 Q4 Check-in</title>
+<style>body{font:17px system-ui,sans-serif;max-width:680px;margin:auto;padding:22px;background:#f6f8fb;color:#182335}h1{font-size:30px}.panel{background:white;padding:20px;border-radius:18px;margin:18px 0}label{display:block;margin:14px 0 6px;font-weight:600}input,select{width:100%;box-sizing:border-box;padding:13px;border:1px solid #aaa;border-radius:10px;font:inherit}button{padding:13px 18px;border:0;border-radius:10px;background:#155eac;color:white;font:inherit;margin:12px 8px 0 0}button:disabled{opacity:.4}#status{font-weight:600;white-space:pre-wrap}#notes{white-space:pre-wrap;overflow-wrap:anywhere}small{color:#555}</style></head><body>
+<h1>2026 Q4 Check-in</h1><p>Keep this page open and your phone unlocked. Get everyone's consent before transcription. Avoid patient-identifying information.</p>
+<div class="panel"><label for="endpoint">Apps Script web app URL</label><input id="endpoint" type="url" placeholder="https://script.google.com/macros/s/.../exec"><label for="key">Private access key</label><input id="key" type="password" autocomplete="off" placeholder="Paste the key from Apps Script"><button id="saveConfig">Save settings on this phone</button><small>Settings are stored locally in this browser. Don't share your key or publish it in a website repository.</small></div>
+<div class="panel"><label for="section">Current section</label><select id="section"><option value="overview">Overview</option><option value="praise">Keep up the good work!</option><option value="goals">Goals</option></select><p><small>Say “section overview,” “section good work,” or “section goals” to switch sections.</small></p><button id="start">Start listening</button><button id="stop" disabled>Stop</button><button id="retry">Send pending notes</button><p id="status" role="status">Not listening</p><p id="preview"></p></div>
+<div class="panel"><strong>Recent notes</strong><div id="notes"></div><p><a href="https://docs.google.com/document/d/1KilEXS0g-bkwOdyGxPofFT0laeLVBygW3Uo2HQuyM0M/edit" target="_blank" rel="noopener">Open Google Doc</a></p></div>
+<script>
+const $=id=>document.getElementById(id), Speech=window.SpeechRecognition||window.webkitSpeechRecognition;
+let recognition=null,listening=false,queue=[],counter=0,sending=false,session=Date.now().toString(36);
+$('endpoint').value=localStorage.getItem('checkin_endpoint')||'';
+$('key').value=localStorage.getItem('checkin_key')||'';
+$('saveConfig').onclick=()=>{localStorage.setItem('checkin_endpoint',$('endpoint').value.trim());localStorage.setItem('checkin_key',$('key').value.trim());status('Settings saved on this phone')};
+function status(s){$('status').textContent=s}
+function addNote(section,text){const entry={id:session+'_'+(++counter),section,text};queue.push(entry);$('notes').textContent='['+section+'] '+text+'\n'+$('notes').textContent;if(queue.length>=4)send()}
+function start(){if(!Speech){status('Speech recognition is not supported in this browser');return}if(!$('endpoint').value.trim()||!$('key').value.trim()){status('Enter your endpoint and private key first');return}
+ listening=true;$('start').disabled=true;$('stop').disabled=false;recognition=new Speech();recognition.lang='en-US';recognition.continuous=true;recognition.interimResults=true;
+ recognition.onresult=e=>{for(let i=e.resultIndex;i<e.results.length;i++){const phrase=e.results[i][0].transcript.trim();$('preview').textContent='Hearing: '+phrase;if(!e.results[i].isFinal)continue;const lower=phrase.toLowerCase().replace(/[.!?]/g,'').trim();if(/^section (overview|good work|goals)$/.test(lower)){$('section').value=lower==='section overview'?'overview':lower==='section goals'?'goals':'praise';continue}addNote($('section').value,phrase)}};
+ recognition.onerror=e=>{listening=false;$('start').disabled=false;$('stop').disabled=true;status('Speech recognition error: '+e.error)};
+ recognition.onend=()=>{if(listening){try{recognition.start();status('Listening (restarted)')}catch(e){status('Restart failed: '+e.message)}}};
+ try{recognition.start();status('Listening…')}catch(e){listening=false;$('start').disabled=false;$('stop').disabled=true;status('Start failed: '+e.message)} }
+function stop(){listening=false;if(recognition)recognition.stop();$('start').disabled=false;$('stop').disabled=true;status('Stopped; sending pending notes…');send()}
+// Cross-origin Apps Script endpoints do not expose a reliable response to ordinary browser fetches.
+// no-cors submission may reach the server but cannot confirm successful saving; verify the Google Doc.
+async function send(){if(sending||!queue.length)return;const endpoint=$('endpoint').value.trim(),key=$('key').value.trim();if(!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec(?:\?.*)?$/.test(endpoint)){status('Invalid Apps Script web app URL');return}if(!key){status('Missing access key');return}
+ sending=true;const batch=queue.slice(0,20);try{await fetch(endpoint,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key,entries:batch})});queue.splice(0,batch.length);status('Notes submitted (not verified). Check the Google Doc.');}catch(e){status('Submission failed; '+queue.length+' notes pending: '+e.message)}finally{sending=false}}
+$('start').onclick=start;$('stop').onclick=stop;$('retry').onclick=send;setInterval(()=>{if(queue.length)send()},20000);
+</script></body></html>
