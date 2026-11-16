@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Employee Check-in</title>
+<style>
+:root{font-family:system-ui,-apple-system,sans-serif;color:#17253b;background:#f5f7fb}body{max-width:760px;margin:auto;padding:18px}h1{margin-bottom:6px}p{line-height:1.45}.panel{background:white;padding:19px;border-radius:16px;margin:16px 0;box-shadow:0 1px 5px #0000000b}label{display:block;font-weight:650;margin:12px 0 5px}input,select,textarea{box-sizing:border-box;width:100%;font:inherit;border:1px solid #b6c1cf;border-radius:9px;padding:11px;background:#fff}textarea{min-height:220px;line-height:1.5}button{border:0;border-radius:9px;padding:12px 16px;background:#1762ae;color:#fff;font:inherit;font-weight:600;margin:10px 8px 0 0}button.secondary{background:#e6edf5;color:#18334e}button:disabled{opacity:.4}small,.hint{color:#4d5b6d}#status{font-weight:600;white-space:pre-wrap}#interim{color:#52647b;font-style:italic;min-height:1.5em;overflow-wrap:anywhere}.actions{display:flex;flex-wrap:wrap;gap:2px}a{color:#1762ae}#count{font-size:.9em;color:#52647b}
+</style></head><body>
+<h1>Employee Check-in</h1><p>Record a meeting, then send the transcript to ChatGPT for a concise summary. Get everyone's consent before transcription. Avoid patient-identifying information.</p>
+<div class="panel"><h2>Meeting details</h2>
+<label for="employee">Employee</label><input id="employee" placeholder="Employee name" autocomplete="off">
+<label for="quarter">Quarter</label><select id="quarter"><option value="Q1">Q1</option><option value="Q2">Q2</option><option value="Q3">Q3</option><option value="Q4">Q4</option></select>
+<label for="year">Year</label><input id="year" type="number" min="2020" max="2100" inputmode="numeric">
+<label for="doc">Employee's quarterly Google Doc link (optional)</label><input id="doc" type="url" placeholder="https://docs.google.com/document/d/.../edit" autocomplete="off">
+<div class="actions"><button id="remember" class="secondary">Remember this document</button><button id="forget" class="secondary">Forget saved document</button></div>
+<p class="hint"><small>Document links are remembered on this device for each employee, year and quarter. Verify the link before sending to ChatGPT.</small></p></div>
+<div class="panel"><h2>Meeting transcript</h2><div class="actions"><button id="start">Start Meeting</button><button id="stop" disabled>End Meeting</button><button id="clear" class="secondary">Clear Transcript</button></div>
+<p id="status" role="status">Ready to record</p><p id="interim" aria-live="polite"></p>
+<label for="transcript">Transcript (editable)</label><textarea id="transcript" placeholder="Recognized speech will appear here. You can correct mistakes before sending."></textarea><p id="count">0 words</p>
+<div class="actions"><button id="send">Copy Transcript &amp; Open ChatGPT</button><button id="copy" class="secondary">Copy Transcript Only</button></div>
+<p class="hint"><small>The app copies a prepared message and opens ChatGPT. Paste it into the chat and press Send. A regular website cannot silently submit messages to your ChatGPT account. The transcript stays on this page unless you copy or share it.</small></p></div>
+<script>
+'use strict';
+const $=id=>document.getElementById(id),Speech=window.SpeechRecognition||window.webkitSpeechRecognition;
+let recognition=null,listening=false,starting=false;
+const storagePrefix='employee_checkin_doc_v1:';
+$('year').value=new Date().getFullYear();$('quarter').value='Q'+(Math.floor(new Date().getMonth()/3)+1);
+function status(message){$('status').textContent=message}
+function meetingKey(){return storagePrefix+JSON.stringify([$('employee').value.trim().toLocaleLowerCase(),$('year').value,$('quarter').value])}
+function loadDoc(){const name=$('employee').value.trim();$('doc').value=name?localStorage.getItem(meetingKey())||'':''}
+$('employee').addEventListener('change',loadDoc);$('quarter').addEventListener('change',loadDoc);$('year').addEventListener('change',loadDoc);
+$('remember').onclick=()=>{if(!$('employee').value.trim()){status('Enter an employee name first');return}const url=$('doc').value.trim();if(url&&!/^https:\/\/docs\.google\.com\/document\/d\/[\w-]+(?:\/|$)/.test(url)){status('Enter a valid Google Docs document link');return}if(url)localStorage.setItem(meetingKey(),url);else localStorage.removeItem(meetingKey());status(url?'Document link remembered on this device':'Document link cleared')};
+$('forget').onclick=()=>{localStorage.removeItem(meetingKey());$('doc').value='';status('Saved document link forgotten')};
+function countWords(){$('count').textContent=($('transcript').value.trim().match(/\S+/g)||[]).length+' words'}
+$('transcript').addEventListener('input',countWords);
+function appendPhrase(phrase){const area=$('transcript');const existing=area.value.trimEnd();area.value=existing+(existing?'\n':'')+phrase;countWords()}
+function setupRecognition(){recognition=new Speech();recognition.lang='en-US';recognition.continuous=true;recognition.interimResults=true;
+ recognition.onresult=e=>{let preview='';for(let i=e.resultIndex;i<e.results.length;i++){const phrase=e.results[i][0].transcript.trim();if(!phrase)continue;if(e.results[i].isFinal)appendPhrase(phrase);else preview+=phrase+' '} $('interim').textContent=preview?'Hearing: '+preview:''};
+ recognition.onerror=e=>{if(e.error==='no-speech'&&listening){status('No speech detected; trying to keep listening');return}listening=false;starting=false;$('start').disabled=false;$('stop').disabled=true;status('Speech recognition error: '+e.error)};
+ recognition.onend=()=>{if(!listening){$('interim').textContent='';return}try{recognition.start();status('Listening (restarted)')}catch(e){listening=false;$('start').disabled=false;$('stop').disabled=true;status('Recognition stopped: '+e.message)}};
+}
+$('start').onclick=()=>{if(!Speech){status('Speech recognition is not supported in this browser. Try Android Chrome.');return}if(listening||starting)return;setupRecognition();listening=true;starting=true;try{recognition.start();$('start').disabled=true;$('stop').disabled=false;status('Listening… Keep this page open and your phone unlocked.')}catch(e){listening=false;status('Unable to start: '+e.message)}finally{starting=false}};
+$('stop').onclick=()=>{listening=false;if(recognition){try{recognition.stop()}catch(e){}}$('start').disabled=false;$('stop').disabled=true;$('interim').textContent='';status('Meeting ended. Review the transcript, then send to ChatGPT.')};
+$('clear').onclick=()=>{if(listening){status('End the meeting before clearing the transcript');return}if(!$('transcript').value||confirm('Permanently clear the transcript from this page?')){$('transcript').value='';countWords();status('Transcript cleared')}};
+function preparedMessage(){const employee=$('employee').value.trim()||'[Employee not specified]',year=$('year').value,quarter=$('quarter').value,doc=$('doc').value.trim();return `Please summarize this employee check-in meeting in concise, professional bullet points under exactly these headings: Overview; Keep up the good work!; Goals. Preserve important specifics, commitments and follow-up actions, avoid inventing details, and omit irrelevant small talk. Employee: ${employee}. Period: ${year} ${quarter}. ${doc?'Target Google Doc: '+doc+'. Please update this exact document if you have editing access, otherwise provide the summary ready to paste.':'No Google Doc link provided; give me a summary ready to paste.'}\n\nMEETING TRANSCRIPT:\n${$('transcript').value.trim()}`}
+async function copyMessage(){if(!$('transcript').value.trim()){status('No transcript yet. Record a meeting or type notes first.');return false}const message=preparedMessage();try{await navigator.clipboard.writeText(message);status('Transcript and instructions copied. Paste into ChatGPT and press Send.');return true}catch(e){const box=document.createElement('textarea');box.value=message;box.style.position='fixed';box.style.left='-9999px';document.body.appendChild(box);box.select();const ok=document.execCommand('copy');box.remove();status(ok?'Copied. Paste into ChatGPT and press Send.':'Could not copy automatically. Select and copy the transcript manually.');return ok}}
+$('copy').onclick=copyMessage;
+$('send').onclick=()=>{if(!$('transcript').value.trim()){status('No transcript yet. Record a meeting first.');return} // Open immediately from user gesture; clipboard copying may complete after navigation.
+ const tab=window.open('https://chatgpt.com/','_blank','noopener');copyMessage();if(!tab)status('Transcript copy attempted. Open chatgpt.com, paste and press Send.');};
+countWords();
+</script></body></html>
