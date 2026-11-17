@@ -43,23 +43,7 @@ $('clear').onclick=()=>{if(listening){status('End the meeting before clearing th
 function preparedMessage(){const employee=$('employee').value.trim()||'[Employee not specified]',year=$('year').value,quarter=$('quarter').value,doc=$('doc').value.trim();return `Please summarize this employee check-in meeting in concise, professional bullet points under exactly these headings: Overview; Keep up the good work!; Goals. Preserve important specifics, commitments and follow-up actions, avoid inventing details, and omit irrelevant small talk. Employee: ${employee}. Period: ${year} ${quarter}. ${doc?'Target Google Doc: '+doc+'. Please update this exact document if you have editing access, otherwise provide the summary ready to paste.':'No Google Doc link provided; give me a summary ready to paste.'}\n\nMEETING TRANSCRIPT:\n${$('transcript').value.trim()}`}
 async function copyMessage(){if(!$('transcript').value.trim()){status('No transcript yet. Record a meeting or type notes first.');return false}const message=preparedMessage();try{await navigator.clipboard.writeText(message);status('Transcript and instructions copied. Paste into ChatGPT and press Send.');return true}catch(e){const box=document.createElement('textarea');box.value=message;box.style.position='fixed';box.style.left='-9999px';document.body.appendChild(box);box.select();const ok=document.execCommand('copy');box.remove();status(ok?'Copied. Paste into ChatGPT and press Send.':'Could not copy automatically. Select and copy the transcript manually.');return ok}}
 $('copy').onclick=copyMessage;
-
-$('send').onclick = async () => {
-  if (!$('transcript').value.trim()) {
-    status('No transcript yet. Record a meeting first.');
-    return;
-  }
-
-  const copied = await copyMessage();
-
-  if (!copied) {
-    status('Copy failed. Use Copy Transcript Only and open ChatGPT manually.');
-    return;
-  }
-
-  status('Copied successfully. Opening ChatGPT… Paste and press Send.');
-  window.location.href = 'https://chatgpt.com/';
-};
-
+$('send').onclick=()=>{if(!$('transcript').value.trim()){status('No transcript yet. Record a meeting first.');return} // Open immediately from user gesture; clipboard copying may complete after navigation.
+ const tab=window.open('https://chatgpt.com/','_blank','noopener');copyMessage();if(!tab)status('Transcript copy attempted. Open chatgpt.com, paste and press Send.');};
 countWords();
 </script></body></html>
