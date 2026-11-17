@@ -40,7 +40,47 @@ function setupRecognition(){recognition=new Speech();recognition.lang='en-US';re
 $('start').onclick=()=>{if(!Speech){status('Speech recognition is not supported in this browser. Try Android Chrome.');return}if(listening||starting)return;setupRecognition();listening=true;starting=true;try{recognition.start();$('start').disabled=true;$('stop').disabled=false;status('Listening… Keep this page open and your phone unlocked.')}catch(e){listening=false;status('Unable to start: '+e.message)}finally{starting=false}};
 $('stop').onclick=()=>{listening=false;if(recognition){try{recognition.stop()}catch(e){}}$('start').disabled=false;$('stop').disabled=true;$('interim').textContent='';status('Meeting ended. Review the transcript, then send to ChatGPT.')};
 $('clear').onclick=()=>{if(listening){status('End the meeting before clearing the transcript');return}if(!$('transcript').value||confirm('Permanently clear the transcript from this page?')){$('transcript').value='';countWords();status('Transcript cleared')}};
-function preparedMessage(){const employee=$('employee').value.trim()||'[Employee not specified]',year=$('year').value,quarter=$('quarter').value,doc=$('doc').value.trim();return `Please summarize this employee check-in meeting in concise, professional bullet points under exactly these headings: Overview; Keep up the good work!; Goals. Preserve important specifics, commitments and follow-up actions, avoid inventing details, and omit irrelevant small talk. Employee: ${employee}. Period: ${year} ${quarter}. ${doc?'Target Google Doc: '+doc+'. Please update this exact document if you have editing access, otherwise provide the summary ready to paste.':'No Google Doc link provided; give me a summary ready to paste.'}\n\nMEETING TRANSCRIPT:\n${$('transcript').value.trim()}`}
+
+function preparedMessage() {
+  const employee = $('employee').value.trim() || '[Employee not specified]';
+  const year = $('year').value;
+  const quarter = $('quarter').value;
+  const doc = $('doc').value.trim();
+
+  const folder = 'https://drive.google.com/drive/folders/141mHv_wQ_grT_u98vKWwY4nAl02eBaYE';
+  const title = `${employee} - ${year} ${quarter} Check-In`;
+
+  return `Please process this employee check-in meeting.
+
+Employee: ${employee}
+Period: ${year} ${quarter}
+Document title: ${title}
+Google Drive folder: ${folder}
+${doc ? 'Existing document link: ' + doc : 'No existing document link provided.'}
+
+INSTRUCTIONS:
+
+1. Summarize the transcript in concise, professional bullet points under exactly these headings:
+   Overview
+   Keep up the good work!
+   Goals
+
+2. Preserve important specifics, commitments, and follow-up actions. Do not invent details or include irrelevant small talk.
+
+3. Using my connected Google Drive, search the specified folder for a Google Doc with the exact document title.
+
+4. If that document exists, update it with the new summary. If it does not exist, create a new Google Doc with that title in the specified folder.
+
+5. If an existing document link was provided, verify that it matches this employee and quarter before updating it.
+
+6. Return a clickable link to the completed Google Doc.
+
+7. If Google Drive access or document creation is unavailable, explain the problem and provide the formatted summary ready to paste. Do not claim the document was saved unless it was successfully created or updated.
+
+MEETING TRANSCRIPT:
+${$('transcript').value.trim()}`;
+}
+
 async function copyMessage(){if(!$('transcript').value.trim()){status('No transcript yet. Record a meeting or type notes first.');return false}const message=preparedMessage();try{await navigator.clipboard.writeText(message);status('Transcript and instructions copied. Paste into ChatGPT and press Send.');return true}catch(e){const box=document.createElement('textarea');box.value=message;box.style.position='fixed';box.style.left='-9999px';document.body.appendChild(box);box.select();const ok=document.execCommand('copy');box.remove();status(ok?'Copied. Paste into ChatGPT and press Send.':'Could not copy automatically. Select and copy the transcript manually.');return ok}}
 $('copy').onclick=copyMessage;
 
