@@ -69,7 +69,31 @@ ${$('transcript').value.trim()}`;
 }
 async function copyMessage(){if(!$('transcript').value.trim()){status('No transcript yet. Record a meeting or type notes first.');return false}const message=preparedMessage();try{await navigator.clipboard.writeText(message);status('Transcript and instructions copied. Paste into ChatGPT and press Send.');return true}catch(e){const box=document.createElement('textarea');box.value=message;box.style.position='fixed';box.style.left='-9999px';document.body.appendChild(box);box.select();const ok=document.execCommand('copy');box.remove();status(ok?'Copied. Paste into ChatGPT and press Send.':'Could not copy automatically. Select and copy the transcript manually.');return ok}}
 $('copy').onclick=copyMessage;
-$('send').onclick=()=>{if(!$('transcript').value.trim()){status('No transcript yet. Record a meeting first.');return} // Open immediately from user gesture; clipboard copying may complete after navigation.
- const tab=window.open('https://chatgpt.com/','_blank','noopener');copyMessage();if(!tab)status('Transcript copy attempted. Open chatgpt.com, paste and press Send.');};
+$('send').onclick = () => {
+  if (!$('transcript').value.trim()) {
+    status('No transcript yet. Record a meeting first.');
+    return;
+  }
+  const message = preparedMessage();
+  const box = document.createElement('textarea');
+  box.value = message;
+  box.style.position = 'fixed';
+  box.style.top = '0';
+  box.style.left = '0';
+  box.style.opacity = '0';
+  document.body.appendChild(box);
+  box.focus();
+  box.select();
+  box.setSelectionRange(0, box.value.length);
+  let copied = false;
+  try { copied = document.execCommand('copy'); } catch (error) { copied = false; }
+  box.remove();
+  if (copied) {
+    status('Copied! Opening ChatGPT...');
+    window.open('https://chatgpt.com/', '_blank');
+  } else {
+    status('Copy failed. Please check clipboard permissions.');
+  }
+};
 countWords();
 </script></body></html>
