@@ -7,6 +7,7 @@
 <h1>Employee Check-in</h1><p>Record a meeting, then send the transcript to ChatGPT to summarize and save to Google Docs. Get everyone's consent before transcription. Avoid patient-identifying information.</p>
 <div class="panel"><h2>Meeting details</h2>
 <label for="employee">Employee</label><input id="employee" placeholder="Employee name" autocomplete="off">
+<label for="meetingDate">Meeting date</label><input id="meetingDate" type="date">
 <label for="quarter">Quarter</label><select id="quarter"><option value="Q1">Q1</option><option value="Q2">Q2</option><option value="Q3">Q3</option><option value="Q4">Q4</option></select>
 <label for="year">Year</label><input id="year" type="number" min="2020" max="2100" inputmode="numeric">
 <label for="doc">Employee's quarterly Google Doc link (optional)</label><input id="doc" type="url" placeholder="https://docs.google.com/document/d/.../edit" autocomplete="off">
@@ -22,7 +23,7 @@
 const $=id=>document.getElementById(id),Speech=window.SpeechRecognition||window.webkitSpeechRecognition;
 let recognition=null,listening=false,starting=false;
 const storagePrefix='employee_checkin_doc_v1:';
-$('year').value=new Date().getFullYear();$('quarter').value='Q'+(Math.floor(new Date().getMonth()/3)+1);
+const today=new Date();$('meetingDate').value=[today.getFullYear(),String(today.getMonth()+1).padStart(2,'0'),String(today.getDate()).padStart(2,'0')].join('-');$('year').value=today.getFullYear();$('quarter').value='Q'+(Math.floor(today.getMonth()/3)+1);
 function status(message){$('status').textContent=message}
 function meetingKey(){return storagePrefix+JSON.stringify([$('employee').value.trim().toLocaleLowerCase(),$('year').value,$('quarter').value])}
 function loadDoc(){const name=$('employee').value.trim();$('doc').value=name?localStorage.getItem(meetingKey())||'':''}
@@ -41,7 +42,7 @@ $('start').onclick=()=>{if(!Speech){status('Speech recognition is not supported 
 $('stop').onclick=()=>{listening=false;if(recognition){try{recognition.stop()}catch(e){}}$('start').disabled=false;$('stop').disabled=true;$('interim').textContent='';status('Meeting ended. Review the transcript, then send to ChatGPT.')};
 $('clear').onclick=()=>{if(listening){status('End the meeting before clearing the transcript');return}if(!$('transcript').value||confirm('Permanently clear the transcript from this page?')){$('transcript').value='';countWords();status('Transcript cleared')}};
 function preparedMessage(){
- const employee=$('employee').value.trim()||'[Employee not specified]',year=$('year').value,quarter=$('quarter').value,doc=$('doc').value.trim();
+ const employee=$('employee').value.trim()||'[Employee not specified]',year=$('year').value,quarter=$('quarter').value,meetingDate=$('meetingDate').value,doc=$('doc').value.trim();
  const title=`${employee} - ${year} ${quarter} Check-In`;
  const template='https://docs.google.com/document/d/19DRo35IIK98qB14xtEULnpD8mD_-t67gR5fAHBmUk1U/edit';
  const folder='https://drive.google.com/drive/folders/141mHv_wQ_grT_u98vKWwY4nAl02eBaYE';
@@ -49,6 +50,7 @@ function preparedMessage(){
 
 Employee: ${employee}
 Period: ${year} ${quarter}
+Meeting date: ${meetingDate}
 Exact destination document title: ${title}
 REQUIRED ORIGINAL TEMPLATE: ${template}
 DESTINATION GOOGLE DRIVE FOLDER: ${folder}
@@ -58,7 +60,7 @@ MANDATORY INSTRUCTIONS:
 1. Summarize only what is supported by the transcript, as concise professional bullet points under exactly these headings: Overview; Keep up the good work!; Goals. Retain specific commitments and next steps; do not invent examples, goals, or details.
 2. Open the REQUIRED ORIGINAL TEMPLATE. ALWAYS use its actual Google Docs formatting, including the centered title, employee/quarter information, three headings, and the three existing table/box areas. NEVER create a blank document with plain-text headings instead of this template.
 3. Search the specified destination folder for a native Google Doc with the exact document title above. If an existing document link was provided, verify it is for the right employee and quarter before using it. If a matching employee/quarter document exists, update that document in place, preserving its existing template layout. If no matching document exists, make a COPY of the original template, name it exactly as above, and put the copy inside the destination folder. Do not modify the original template or create duplicates.
-4. Populate the employee name and quarter in the form. Put the respective summary bullets INSIDE the corresponding existing table/box cells, not below them or in a new plain-text document. Preserve the rest of the template's formatting and structure.
+4. Populate the employee name, quarter, and meeting date in the form where applicable. Put the respective summary bullets INSIDE the corresponding existing table/box cells, not below them or in a new plain-text document. Preserve the rest of the template's formatting and structure.
 5. Verify the completed Google Doc's title, contents, template layout, and parent folder by reading it back. Return a clickable link to the completed Google Doc.
 6. If Google Drive access, copying the template, editing, or verification fails, explain the problem and provide the three-section summary ready to paste. NEVER claim success unless the Google Doc was actually saved and verified.
 
