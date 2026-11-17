@@ -4,7 +4,7 @@
 <style>
 :root{font-family:system-ui,-apple-system,sans-serif;color:#17253b;background:#f5f7fb}body{max-width:760px;margin:auto;padding:18px}h1{margin-bottom:6px}p{line-height:1.45}.panel{background:white;padding:19px;border-radius:16px;margin:16px 0;box-shadow:0 1px 5px #0000000b}label{display:block;font-weight:650;margin:12px 0 5px}input,select,textarea{box-sizing:border-box;width:100%;font:inherit;border:1px solid #b6c1cf;border-radius:9px;padding:11px;background:#fff}textarea{min-height:220px;line-height:1.5}button{border:0;border-radius:9px;padding:12px 16px;background:#1762ae;color:#fff;font:inherit;font-weight:600;margin:10px 8px 0 0}button.secondary{background:#e6edf5;color:#18334e}button:disabled{opacity:.4}small,.hint{color:#4d5b6d}#status{font-weight:600;white-space:pre-wrap}#interim{color:#52647b;font-style:italic;min-height:1.5em;overflow-wrap:anywhere}.actions{display:flex;flex-wrap:wrap;gap:2px}a{color:#1762ae}#count{font-size:.9em;color:#52647b}
 </style></head><body>
-<h1>Employee Check-in</h1><p>Record a meeting, then send the transcript to ChatGPT for a concise summary. Get everyone's consent before transcription. Avoid patient-identifying information.</p>
+<h1>Employee Check-in</h1><p>Record a meeting, then send the transcript to ChatGPT to summarize and save to Google Docs. Get everyone's consent before transcription. Avoid patient-identifying information.</p>
 <div class="panel"><h2>Meeting details</h2>
 <label for="employee">Employee</label><input id="employee" placeholder="Employee name" autocomplete="off">
 <label for="quarter">Quarter</label><select id="quarter"><option value="Q1">Q1</option><option value="Q2">Q2</option><option value="Q3">Q3</option><option value="Q4">Q4</option></select>
@@ -16,7 +16,7 @@
 <p id="status" role="status">Ready to record</p><p id="interim" aria-live="polite"></p>
 <label for="transcript">Transcript (editable)</label><textarea id="transcript" placeholder="Recognized speech will appear here. You can correct mistakes before sending."></textarea><p id="count">0 words</p>
 <div class="actions"><button id="send">Copy Transcript &amp; Open ChatGPT</button><button id="copy" class="secondary">Copy Transcript Only</button></div>
-<p class="hint"><small>The app copies a prepared message and opens ChatGPT. Paste it into the chat and press Send. A regular website cannot silently submit messages to your ChatGPT account. The transcript stays on this page unless you copy or share it.</small></p></div>
+<p class="hint"><small>The app copies instructions requiring your original Quarterly Employee Check-in template and designated Google Drive folder, then opens ChatGPT. Paste into the chat and press Send. A regular website cannot silently submit messages to your ChatGPT account. The transcript stays on this page unless you copy or share it.</small></p></div>
 <script>
 'use strict';
 const $=id=>document.getElementById(id),Speech=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -40,88 +40,34 @@ function setupRecognition(){recognition=new Speech();recognition.lang='en-US';re
 $('start').onclick=()=>{if(!Speech){status('Speech recognition is not supported in this browser. Try Android Chrome.');return}if(listening||starting)return;setupRecognition();listening=true;starting=true;try{recognition.start();$('start').disabled=true;$('stop').disabled=false;status('Listening… Keep this page open and your phone unlocked.')}catch(e){listening=false;status('Unable to start: '+e.message)}finally{starting=false}};
 $('stop').onclick=()=>{listening=false;if(recognition){try{recognition.stop()}catch(e){}}$('start').disabled=false;$('stop').disabled=true;$('interim').textContent='';status('Meeting ended. Review the transcript, then send to ChatGPT.')};
 $('clear').onclick=()=>{if(listening){status('End the meeting before clearing the transcript');return}if(!$('transcript').value||confirm('Permanently clear the transcript from this page?')){$('transcript').value='';countWords();status('Transcript cleared')}};
-
-function preparedMessage() {
-  const employee = $('employee').value.trim() || '[Employee not specified]';
-  const year = $('year').value;
-  const quarter = $('quarter').value;
-  const doc = $('doc').value.trim();
-
-  const folder = 'https://drive.google.com/drive/folders/141mHv_wQ_grT_u98vKWwY4nAl02eBaYE';
-  const title = `${employee} - ${year} ${quarter} Check-In`;
-
-  return `Please process this employee check-in meeting.
+function preparedMessage(){
+ const employee=$('employee').value.trim()||'[Employee not specified]',year=$('year').value,quarter=$('quarter').value,doc=$('doc').value.trim();
+ const title=`${employee} - ${year} ${quarter} Check-In`;
+ const template='https://docs.google.com/document/d/19DRo35IIK98qB14xtEULnpD8mD_-t67gR5fAHBmUk1U/edit';
+ const folder='https://drive.google.com/drive/folders/141mHv_wQ_grT_u98vKWwY4nAl02eBaYE';
+ return `Please process this employee check-in using my connected Google Drive and Google Docs.
 
 Employee: ${employee}
 Period: ${year} ${quarter}
-Document title: ${title}
-Google Drive folder: ${folder}
-${doc ? 'Existing document link: ' + doc : 'No existing document link provided.'}
+Exact destination document title: ${title}
+REQUIRED ORIGINAL TEMPLATE: ${template}
+DESTINATION GOOGLE DRIVE FOLDER: ${folder}
+${doc?'EXISTING DOCUMENT LINK (verify employee and quarter before editing): '+doc:'No existing document link provided.'}
 
-INSTRUCTIONS:
-
-1. Summarize the transcript in concise, professional bullet points under exactly these headings:
-   Overview
-   Keep up the good work!
-   Goals
-
-2. Preserve important specifics, commitments, and follow-up actions. Do not invent details or include irrelevant small talk.
-
-3. Using my connected Google Drive, search the specified folder for a Google Doc with the exact document title.
-
-4. If that document exists, update it with the new summary. If it does not exist, create a new Google Doc with that title in the specified folder.
-
-5. If an existing document link was provided, verify that it matches this employee and quarter before updating it.
-
-6. Return a clickable link to the completed Google Doc.
-
-7. If Google Drive access or document creation is unavailable, explain the problem and provide the formatted summary ready to paste. Do not claim the document was saved unless it was successfully created or updated.
+MANDATORY INSTRUCTIONS:
+1. Summarize only what is supported by the transcript, as concise professional bullet points under exactly these headings: Overview; Keep up the good work!; Goals. Retain specific commitments and next steps; do not invent examples, goals, or details.
+2. Open the REQUIRED ORIGINAL TEMPLATE. ALWAYS use its actual Google Docs formatting, including the centered title, employee/quarter information, three headings, and the three existing table/box areas. NEVER create a blank document with plain-text headings instead of this template.
+3. Search the specified destination folder for a native Google Doc with the exact document title above. If an existing document link was provided, verify it is for the right employee and quarter before using it. If a matching employee/quarter document exists, update that document in place, preserving its existing template layout. If no matching document exists, make a COPY of the original template, name it exactly as above, and put the copy inside the destination folder. Do not modify the original template or create duplicates.
+4. Populate the employee name and quarter in the form. Put the respective summary bullets INSIDE the corresponding existing table/box cells, not below them or in a new plain-text document. Preserve the rest of the template's formatting and structure.
+5. Verify the completed Google Doc's title, contents, template layout, and parent folder by reading it back. Return a clickable link to the completed Google Doc.
+6. If Google Drive access, copying the template, editing, or verification fails, explain the problem and provide the three-section summary ready to paste. NEVER claim success unless the Google Doc was actually saved and verified.
 
 MEETING TRANSCRIPT:
 ${$('transcript').value.trim()}`;
 }
-
 async function copyMessage(){if(!$('transcript').value.trim()){status('No transcript yet. Record a meeting or type notes first.');return false}const message=preparedMessage();try{await navigator.clipboard.writeText(message);status('Transcript and instructions copied. Paste into ChatGPT and press Send.');return true}catch(e){const box=document.createElement('textarea');box.value=message;box.style.position='fixed';box.style.left='-9999px';document.body.appendChild(box);box.select();const ok=document.execCommand('copy');box.remove();status(ok?'Copied. Paste into ChatGPT and press Send.':'Could not copy automatically. Select and copy the transcript manually.');return ok}}
 $('copy').onclick=copyMessage;
-
-
-$('send').onclick = () => {
-  if (!$('transcript').value.trim()) {
-    status('No transcript yet. Record a meeting first.');
-    return;
-  }
-
-  const message = preparedMessage();
-  const box = document.createElement('textarea');
-
-  box.value = message;
-  box.style.position = 'fixed';
-  box.style.top = '0';
-  box.style.left = '0';
-  box.style.opacity = '0';
-
-  document.body.appendChild(box);
-  box.focus();
-  box.select();
-  box.setSelectionRange(0, box.value.length);
-
-  let copied = false;
-
-  try {
-    copied = document.execCommand('copy');
-  } catch (error) {
-    copied = false;
-  }
-
-  box.remove();
-
-  if (copied) {
-    status('Copied! Opening ChatGPT...');
-    window.open('https://chatgpt.com/', '_blank');
-  } else {
-    status('Copy failed. Please check clipboard permissions.');
-  }
-};
-
+$('send').onclick=()=>{if(!$('transcript').value.trim()){status('No transcript yet. Record a meeting first.');return} // Open immediately from user gesture; clipboard copying may complete after navigation.
+ const tab=window.open('https://chatgpt.com/','_blank','noopener');copyMessage();if(!tab)status('Transcript copy attempted. Open chatgpt.com, paste and press Send.');};
 countWords();
 </script></body></html>
