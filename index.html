@@ -44,33 +44,43 @@ function preparedMessage(){const employee=$('employee').value.trim()||'[Employee
 async function copyMessage(){if(!$('transcript').value.trim()){status('No transcript yet. Record a meeting or type notes first.');return false}const message=preparedMessage();try{await navigator.clipboard.writeText(message);status('Transcript and instructions copied. Paste into ChatGPT and press Send.');return true}catch(e){const box=document.createElement('textarea');box.value=message;box.style.position='fixed';box.style.left='-9999px';document.body.appendChild(box);box.select();const ok=document.execCommand('copy');box.remove();status(ok?'Copied. Paste into ChatGPT and press Send.':'Could not copy automatically. Select and copy the transcript manually.');return ok}}
 $('copy').onclick=copyMessage;
 
-$('send').onclick = async () => {
+
+$('send').onclick = () => {
   if (!$('transcript').value.trim()) {
     status('No transcript yet. Record a meeting first.');
     return;
   }
 
-  // Open a blank tab during the button click to avoid popup blocking.
-  const tab = window.open('about:blank', '_blank');
+  const message = preparedMessage();
+  const box = document.createElement('textarea');
 
-  // Copy while the original app is still active.
-  const copied = await copyMessage();
+  box.value = message;
+  box.style.position = 'fixed';
+  box.style.top = '0';
+  box.style.left = '0';
+  box.style.opacity = '0';
 
-  if (!copied) {
-    if (tab) tab.close();
-    status('Copy failed. Try Copy Transcript Only.');
-    return;
+  document.body.appendChild(box);
+  box.focus();
+  box.select();
+  box.setSelectionRange(0, box.value.length);
+
+  let copied = false;
+
+  try {
+    copied = document.execCommand('copy');
+  } catch (error) {
+    copied = false;
   }
 
-  // Navigate to ChatGPT only after copying succeeds.
-  if (tab && !tab.closed) {
-    tab.location.replace('https://chatgpt.com/');
+  box.remove();
+
+  if (copied) {
+    status('Copied! Opening ChatGPT...');
+    window.open('https://chatgpt.com/', '_blank');
   } else {
-    status('Copied! Open ChatGPT manually and paste.');
-    return;
+    status('Copy failed. Please check clipboard permissions.');
   }
-
-  status('Copied! Paste into ChatGPT and press Send.');
 };
 
 countWords();
